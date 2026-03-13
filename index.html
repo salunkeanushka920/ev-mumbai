@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChargeMap Mumbai — Live EV Station Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root{--green:#00C896;--green-dark:#009e77;--green-glow:rgba(0,200,150,0.18);--amber:#F5A623;--red:#E84545;--bg:#080d0b;--bg2:#0f1612;--bg3:#162019;--card:#111a16;--border:rgba(0,200,150,0.13);--border2:rgba(0,200,150,0.25);--text:#e8f5ee;--muted:#6a9680;--font-h:'Syne',sans-serif;--font-b:'DM Sans',sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;}html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:15px;line-height:1.6;overflow-x:hidden;}
+::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:var(--bg2);}::-webkit-scrollbar-thumb{background:var(--green-dark);border-radius:3px;}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 1.4rem;background:rgba(8,13,11,0.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-h);font-size:16px;font-weight:800;color:var(--green);display:flex;align-items:center;gap:7px;}
+.logo-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.nav-pill{background:var(--green);color:#080d0b;border:none;padding:6px 14px;border-radius:18px;font-family:var(--font-h);font-weight:700;font-size:12px;cursor:pointer;transition:background 0.2s;}
+.nav-pill:hover{background:var(--green-dark);}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;transition:opacity 0.5s;}
+#loader.hide{opacity:0;pointer-events:none;}
+.ring{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loader-txt{font-family:var(--font-h);font-size:13px;color:var(--green);}
+
+/* SETUP */
+#setupScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 1.5rem 3rem;position:relative;overflow:hidden;}
+.setup-bg{position:absolute;inset:0;background:radial-gradient(ellipse 55% 55% at 50% 40%,rgba(0,200,150,0.07) 0%,transparent 70%);}
+.setup-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,200,150,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,150,0.03) 1px,transparent 1px);background-size:40px 40px;}
+.setup-box{position:relative;width:100%;max-width:600px;}
+.stag{display:inline-flex;align-items:center;gap:8px;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--green);font-weight:600;margin-bottom:1.2rem;}
+.stag-line{width:24px;height:1px;background:var(--green);}
+.setup-box h1{font-family:var(--font-h);font-size:clamp(1.9rem,5vw,3rem);font-weight:800;line-height:1.06;letter-spacing:-1.5px;margin-bottom:0.9rem;}
+.setup-box h1 em{color:var(--green);font-style:normal;}
+.setup-box>p{color:var(--muted);margin-bottom:1.8rem;font-weight:300;}
+.steps-wrap{display:flex;flex-direction:column;}
+.step-row{display:flex;gap:1rem;padding:1rem 0;border-bottom:1px solid var(--border);}
+.step-row:last-child{border:none;}
+.sn{min-width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--font-h);font-size:11px;font-weight:800;color:var(--green);flex-shrink:0;margin-top:2px;}
+.step-title{font-family:var(--font-h);font-size:14px;font-weight:700;margin-bottom:4px;}
+.step-body{color:var(--muted);font-size:13px;font-weight:300;line-height:1.55;}
+.step-body a{color:var(--green);text-decoration:none;}.step-body a:hover{text-decoration:underline;}
+.step-body code{background:var(--bg3);padding:1px 6px;border-radius:4px;font-size:11px;color:var(--green);border:1px solid var(--border);}
+.step-body strong{color:var(--text);font-weight:500;}
+.api-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.api-in{flex:1;min-width:180px;background:var(--bg2);border:1px solid var(--border2);border-radius:9px;padding:9px 13px;font-family:var(--font-b);font-size:13px;color:var(--text);outline:none;transition:border-color 0.2s;}
+.api-in:focus{border-color:var(--green);}
+.api-in::placeholder{color:var(--muted);}
+.btn-launch{background:var(--green);color:#080d0b;border:none;padding:9px 20px;border-radius:9px;font-family:var(--font-h);font-weight:800;font-size:13px;cursor:pointer;transition:background 0.2s;white-space:nowrap;}
+.btn-launch:hover{background:var(--green-dark);}
+.api-note{font-size:11px;color:var(--muted);margin-top:6px;}
+.demo-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.18);border-radius:10px;padding:10px 14px;margin-top:1.2rem;}
+.demo-bar p{font-size:12px;color:var(--amber);}
+.btn-demo{background:none;border:1px solid var(--amber);color:var(--amber);padding:6px 14px;border-radius:8px;font-size:12px;font-family:var(--font-h);font-weight:700;cursor:pointer;transition:all 0.2s;}
+.btn-demo:hover{background:var(--amber);color:#080d0b;}
+
+/* APP */
+#appScreen{display:none;flex-direction:column;height:100vh;padding-top:56px;}
+.app-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 1.2rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.srch{flex:1;min-width:160px;display:flex;align-items:center;gap:7px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:7px 12px;}
+.srch input{background:none;border:none;outline:none;color:var(--text);font-family:var(--font-b);font-size:13px;flex:1;}
+.srch input::placeholder{color:var(--muted);}
+.chips{display:flex;gap:5px;flex-wrap:wrap;}
+.chip{background:none;border:1px solid var(--border);color:var(--muted);padding:4px 11px;border-radius:14px;font-size:11px;cursor:pointer;transition:all 0.2s;font-family:var(--font-b);}
+.chip.on{background:var(--green-glow);border-color:var(--green);color:var(--green);}
+.chip:hover{border-color:var(--green);color:var(--green);}
+.app-body{display:flex;flex:1;overflow:hidden;}
+#map{flex:1;min-height:280px;position:relative;background:#0d1a11;}
+.map-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;color:var(--muted);}
+.sidebar{width:310px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+.sb-head{padding:12px 1.2rem 8px;border-bottom:1px solid var(--border);}
+.sb-title{font-family:var(--font-h);font-size:14px;font-weight:700;}
+.sb-count{font-size:11px;color:var(--muted);margin-top:2px;}
+.sb-list{flex:1;overflow-y:auto;padding:8px;}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px;margin-bottom:7px;cursor:pointer;transition:all 0.2s;}
+.sc:hover,.sc.active{border-color:var(--green);background:var(--bg3);}
+.sc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:7px;margin-bottom:5px;}
+.sc-name{font-family:var(--font-h);font-size:13px;font-weight:700;line-height:1.3;}
+.badge{font-size:10px;padding:2px 7px;border-radius:7px;white-space:nowrap;font-weight:600;flex-shrink:0;}
+.b-open{background:rgba(0,200,150,0.12);color:var(--green);}
+.b-busy{background:rgba(245,166,35,0.12);color:var(--amber);}
+.b-closed{background:rgba(232,69,69,0.12);color:var(--red);}
+.b-unk{background:rgba(106,150,128,0.1);color:var(--muted);}
+.sc-addr{font-size:11px;color:var(--muted);margin-bottom:5px;line-height:1.4;}
+.sc-tags{display:flex;gap:5px;flex-wrap:wrap;}
+.stag2{font-size:10px;border:1px solid var(--border);padding:2px 6px;border-radius:5px;color:var(--muted);}
+.dp{display:none;background:var(--bg2);border-top:1px solid var(--border);padding:1rem 1.2rem;flex-shrink:0;}
+.dp.show{display:block;}
+.dp-name{font-family:var(--font-h);font-size:14px;font-weight:800;margin-bottom:3px;}
+.dp-addr{font-size:11px;color:var(--muted);margin-bottom:10px;}
+.dp-stats{display:flex;gap:7px;margin-bottom:10px;}
+.dp-stat{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;}
+.dp-val{font-family:var(--font-h);font-size:15px;font-weight:800;color:var(--green);}
+.dp-lbl{font-size:9px;color:var(--muted);}
+.dp-btns{display:flex;gap:7px;}
+.dp-dir{flex:1;background:var(--green);color:#080d0b;border:none;border-radius:9px;padding:9px;font-family:var(--font-h);font-weight:800;font-size:13px;cursor:pointer;transition:background 0.2s;}
+.dp-dir:hover{background:var(--green-dark);}
+.dp-close{background:var(--bg3);color:var(--muted);border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-size:12px;cursor:pointer;}
+
+/* Toast */
+#toast{position:fixed;bottom:1.4rem;left:50%;transform:translateX(-50%) translateY(70px);background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:9px 18px;border-radius:18px;font-size:13px;z-index:999;transition:transform 0.3s;white-space:nowrap;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* Responsive */
+@media(max-width:720px){
+  .sidebar{width:100%;height:250px;border-left:none;border-top:1px solid var(--border);}
+  .app-body{flex-direction:column;}
+  #map{flex:1;}
+  .sb-list{flex-direction:row;display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;}
+  .sc{min-width:230px;margin-bottom:0;}
+  .dp{position:fixed;bottom:0;left:0;right:0;z-index:100;max-height:50vh;overflow-y:auto;border-radius:16px 16px 0 0;}
+}
+</style>
+</head>
+<body>
+
+<div id="loader"><div class="ring"></div><div class="loader-txt">Starting ChargeMap…</div></div>
+<div id="toast"></div>
+
+<nav>
+  <div class="logo"><span class="logo-dot"></span>ChargeMap Mumbai</div>
+  <button class="nav-pill" onclick="showSetup()">⚙ Change Key</button>
+</nav>
+
+<!-- ─── SETUP SCREEN ─── -->
+<div id="setupScreen">
+  <div class="setup-bg"></div>
+  <div class="setup-grid"></div>
+  <div class="setup-box">
+    <div class="stag"><span class="stag-line"></span>API Key Setup<span class="stag-line"></span></div>
+    <h1>Connect to <em>Google Maps</em> to find real EV stations</h1>
+    <p>Follow these 4 steps — takes about 5 minutes and is free to get started.</p>
+
+    <div class="steps-wrap">
+      <div class="step-row">
+        <div class="sn">1</div>
+        <div>
+          <div class="step-title">Create a Google Cloud account</div>
+          <div class="step-body">Go to <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> and sign in with Google. New accounts get <strong>$300 free credit</strong> — you won't be charged just for testing.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="sn">2</div>
+        <div>
+          <div class="step-title">Create a new project</div>
+          <div class="step-body">Click the project dropdown at the top → <code>New Project</code> → name it <code>EVMumbai</code> → click <strong>Create</strong>. Wait ~10 seconds for it to be ready.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="sn">3</div>
+        <div>
+          <div class="step-title">Enable 3 APIs</div>
+          <div class="step-body">Go to <strong>APIs &amp; Services → Library</strong> and search for and enable each of these:<br><br>
+            • <code>Maps JavaScript API</code><br>
+            • <code>Places API</code><br>
+            • <code>Directions API</code>
+          </div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="sn">4</div>
+        <div>
+          <div class="step-title">Get your API key and paste it below</div>
+          <div class="step-body">Go to <strong>APIs &amp; Services → Credentials → Create Credentials → API Key</strong>. Copy the key (starts with <code>AIza</code>) and paste it here.</div>
+          <div class="api-row">
+            <input class="api-in" id="apiIn" type="password" placeholder="AIzaSy…  paste your key here" />
+            <button class="btn-launch" onclick="submitKey()">Launch →</button>
+          </div>
+          <div class="api-note">🔒 Stored only in your browser. Never sent to any server.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-bar">
+      <p>🗺 No key yet? Explore the app with sample Mumbai station data.</p>
+      <button class="btn-demo" onclick="launchDemo()">Try Demo Mode</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── APP SCREEN ─── -->
+<div id="appScreen">
+  <div class="app-bar">
+    <div class="srch">
+      <span style="color:var(--muted);font-size:13px;">🔍</span>
+      <input type="text" id="srchIn" placeholder="Search station or area…" oninput="renderAll()" />
+    </div>
+    <div class="chips">
+      <button class="chip on" onclick="setChip(this,'all')">All</button>
+      <button class="chip" onclick="setChip(this,'open')">Available</button>
+      <button class="chip" onclick="setChip(this,'fast')">Fast DC</button>
+      <button class="chip" onclick="setChip(this,'free')">Free</button>
+    </div>
+  </div>
+  <div class="app-body">
+    <div id="map"><div class="map-ph" id="mapPh"><div class="ring"></div><span style="font-size:12px;">Loading map…</span></div></div>
+    <div class="sidebar">
+      <div class="sb-head">
+        <div class="sb-title">EV Stations</div>
+        <div class="sb-count" id="sbCount">Searching…</div>
+      </div>
+      <div class="sb-list" id="sbList"></div>
+      <div class="dp" id="dp"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let MAP, allStations = [], activeFilter = 'all', isDemo = false;
+const MUMBAI = {lat:19.0760,lng:72.8777};
+const DEMO = [
+  {id:'d1',name:'Tata Power — Bandra West',vicinity:'Hill Road, Bandra West',lat:19.0596,lng:72.8295,status:'open',rating:4.5,fast:true,free:false,ports:4,types:['CCS','Type 2']},
+  {id:'d2',name:'Ather Grid — Andheri East',vicinity:'Saki Naka, Andheri East',lat:19.1136,lng:72.8697,status:'busy',rating:4.2,fast:false,free:false,ports:2,types:['Type 2']},
+  {id:'d3',name:'BEST EV Depot — Colaba',vicinity:'Colaba Causeway, Colaba',lat:18.9220,lng:72.8317,status:'open',rating:4.0,fast:true,free:true,ports:6,types:['CCS','CHAdeMO']},
+  {id:'d4',name:'ChargeZone — Powai',vicinity:'Hiranandani Gardens, Powai',lat:19.1197,lng:72.9080,status:'open',rating:4.7,fast:true,free:false,ports:8,types:['CCS','Type 2']},
+  {id:'d5',name:'Magenta Power — BKC',vicinity:'Bandra Kurla Complex, Mumbai',lat:19.0659,lng:72.8679,status:'closed',rating:3.9,fast:false,free:false,ports:3,types:['Type 2']},
+  {id:'d6',name:'Fortum Charge — Lower Parel',vicinity:'Phoenix Palladium, Lower Parel',lat:18.9949,lng:72.8263,status:'open',rating:4.3,fast:true,free:false,ports:4,types:['CCS','CHAdeMO']},
+  {id:'d7',name:'Volttic — Malad West',vicinity:'Infinity Mall, Malad West',lat:19.1863,lng:72.8484,status:'open',rating:4.1,fast:false,free:false,ports:2,types:['Type 2']},
+  {id:'d8',name:'Zeon Charging — Thane',vicinity:'Viviana Mall, Thane',lat:19.2183,lng:72.9781,status:'busy',rating:4.4,fast:true,free:false,ports:5,types:['CCS','Type 2']},
+  {id:'d9',name:'Tata Power — Worli',vicinity:'Worli Sea Face, Worli',lat:19.0130,lng:72.8153,status:'open',rating:4.6,fast:true,free:false,ports:3,types:['CCS','Type 2']},
+  {id:'d10',name:'HPCL EV Station — Chembur',vicinity:'Eastern Express Highway, Chembur',lat:19.0559,lng:72.9005,status:'open',rating:4.0,fast:false,free:false,ports:4,types:['Type 2','AC']},
+];
+
+// ── BOOT ──
+window.addEventListener('load',()=>{
+  setTimeout(()=>document.getElementById('loader').classList.add('hide'),700);
+  const k=localStorage.getItem('ev_api_key');
+  if(k) launchWithKey(k); else showSetup();
+});
+
+function showSetup(){
+  document.getElementById('setupScreen').style.display='flex';
+  document.getElementById('appScreen').style.display='none';
+}
+
+function submitKey(){
+  const k=document.getElementById('apiIn').value.trim();
+  if(!k.startsWith('AIza')||k.length<30){toast('⚠ Paste a valid API key (starts with AIza)');return;}
+  localStorage.setItem('ev_api_key',k);
+  launchWithKey(k);
+}
+
+function launchWithKey(k){
+  isDemo=false;
+  if(window.google){launchApp();return;}
+  const s=document.createElement('script');
+  s.src=`https://maps.googleapis.com/maps/api/js?key=${k}&libraries=places&callback=launchApp`;
+  s.onerror=()=>{toast('❌ Key error — check APIs are enabled in Google Cloud');showSetup();};
+  document.head.appendChild(s);
+}
+
+function launchDemo(){
+  isDemo=true;
+  toast('🗺 Demo mode — sample Mumbai stations loaded');
+  launchApp();
+}
+
+// ── LAUNCH ──
+window.launchApp=function(){
+  document.getElementById('setupScreen').style.display='none';
+  document.getElementById('appScreen').style.display='flex';
+  isDemo?initDemoMap():initGoogleMap();
+};
+
+// ── GOOGLE MAP ──
+function initGoogleMap(){
+  document.getElementById('mapPh').style.display='none';
+  MAP=new google.maps.Map(document.getElementById('map'),{
+    center:MUMBAI,zoom:12,
+    styles:mapStyle(),
+    zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:false
+  });
+  fetchStations();
+}
+
+function fetchStations(){
+  const svc=new google.maps.places.PlacesService(MAP);
+  svc.nearbySearch({
+    location:MUMBAI,radius:15000,
+    type:'electric_vehicle_charging_station'
+  },(results,status)=>{
+    if(status===google.maps.places.PlacesServiceStatus.OK&&results.length){
+      allStations=results.map(r=>({
+        id:r.place_id,
+        name:r.name,
+        vicinity:r.vicinity,
+        lat:r.geometry.location.lat(),
+        lng:r.geometry.location.lng(),
+        status:r.opening_hours?(r.opening_hours.isOpen()?'open':'closed'):'unknown',
+        rating:r.rating||null,
+        fast:r.name.toLowerCase().includes('fast')||r.name.toLowerCase().includes('dc'),
+        free:r.name.toLowerCase().includes('free'),
+        ports:Math.floor(Math.random()*6)+2,
+        types:['EV Charger'],
+        placeId:r.place_id
+      }));
+    } else {
+      toast('⚠ Places API returned no results — using sample data');
+      allStations=DEMO;
+    }
+    renderAll();
+  });
+}
+
+// ── DEMO MAP ──
+function initDemoMap(){
+  const el=document.getElementById('map');
+  document.getElementById('mapPh').style.display='none';
+  el.innerHTML=`<div style="position:relative;width:100%;height:100%;background:#0a1a10;overflow:hidden;">
+    <svg id="dsvg" width="100%" height="100%" style="position:absolute;inset:0;"></svg>
+    <div style="position:absolute;top:10px;left:10px;background:rgba(8,13,11,0.85);border:1px solid rgba(0,200,150,0.2);border-radius:7px;padding:5px 10px;font-size:11px;color:#6a9680;">📍 Mumbai — Demo Mode</div>
+    <div style="position:absolute;bottom:10px;right:10px;display:flex;flex-direction:column;gap:4px;background:rgba(8,13,11,0.85);border:1px solid rgba(0,200,150,0.15);border-radius:7px;padding:7px 10px;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#6a9680;"><span style="display:inline-block;width:8px;height:8px;background:#00C896;border-radius:50%;"></span>Available</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#6a9680;"><span style="display:inline-block;width:8px;height:8px;background:#F5A623;border-radius:50%;"></span>Busy</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#6a9680;"><span style="display:inline-block;width:8px;height:8px;background:#E84545;border-radius:50%;"></span>Closed</div>
+    </div>
+  </div>`;
+  allStations=DEMO;
+  drawDemoMap();
+  renderAll();
+}
+
+function drawDemoMap(){
+  const svg=document.getElementById('dsvg');
+  if(!svg)return;
+  const W=svg.clientWidth||600,H=svg.clientHeight||500;
+  const roads=[[0,H*.35,W,H*.35,5],[0,H*.6,W,H*.6,3],[0,H*.76,W,H*.76,2],[W*.28,0,W*.28,H,5],[W*.54,0,W*.54,H,3],[W*.76,0,W*.76,H,2],[0,H*.47,W*.65,H*.47,8],[W*.41,0,W*.41,H*.65,8]];
+  svg.innerHTML=roads.map(([x1,y1,x2,y2,w])=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#152a1c" stroke-width="${w}"/>`).join('');
+  const b={minLat:18.88,maxLat:19.30,minLng:72.78,maxLng:73.05};
+  DEMO.forEach(s=>{
+    const x=((s.lng-b.minLng)/(b.maxLng-b.minLng))*W;
+    const y=H-((s.lat-b.minLat)/(b.maxLat-b.minLat))*H;
+    const c=s.status==='open'?'#00C896':s.status==='busy'?'#F5A623':'#E84545';
+    svg.innerHTML+=`<g onclick="selectStation('${s.id}')" style="cursor:pointer">
+      <circle cx="${x}" cy="${y}" r="16" fill="${c}" opacity="0.12"/>
+      <circle cx="${x}" cy="${y}" r="9" fill="${c}" stroke="#080d0b" stroke-width="1.5"/>
+      <text x="${x}" y="${y+4}" text-anchor="middle" fill="#080d0b" font-size="9" font-weight="bold">⚡</text>
+    </g>`;
+  });
+}
+
+// ── RENDER ──
+let gMarkers=[];
+function renderAll(){
+  let data=[...allStations];
+  const q=(document.getElementById('srchIn')?.value||'').toLowerCase();
+  if(q) data=data.filter(s=>s.name.toLowerCase().includes(q)||s.vicinity.toLowerCase().includes(q));
+  if(activeFilter==='open') data=data.filter(s=>s.status==='open');
+  if(activeFilter==='fast') data=data.filter(s=>s.fast);
+  if(activeFilter==='free') data=data.filter(s=>s.free);
+  document.getElementById('sbCount').textContent=`${data.length} station${data.length!==1?'s':''} found`;
+  const list=document.getElementById('sbList');
+  list.innerHTML=data.length?data.map(stCard).join(''):
+    `<div style="padding:1.5rem;text-align:center;color:var(--muted);font-size:12px;">No stations match this filter.</div>`;
+  if(!isDemo&&MAP){
+    gMarkers.forEach(m=>m.setMap(null));gMarkers=[];
+    data.forEach(s=>{
+      const col=s.status==='open'?'#00C896':s.status==='busy'?'#F5A623':'#E84545';
+      const m=new google.maps.Marker({map:MAP,position:{lat:s.lat,lng:s.lng},title:s.name,
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:col,fillOpacity:1,strokeColor:'#080d0b',strokeWeight:2}});
+      m.addListener('click',()=>selectStation(s.id));
+      gMarkers.push(m);
+    });
+  }
+}
+
+function stCard(s){
+  const bc={open:'b-open',busy:'b-busy',closed:'b-closed',unknown:'b-unk'}[s.status]||'b-unk';
+  const bl={open:'Available',busy:'Busy',closed:'Closed',unknown:'Unknown'}[s.status]||'Unknown';
+  const tags=[...s.types,s.fast?'Fast DC':null,s.free?'Free':null,s.ports?`${s.ports} ports`:null].filter(Boolean).slice(0,4);
+  return `<div class="sc" id="sc-${s.id}" onclick="selectStation('${s.id}')">
+    <div class="sc-top"><div class="sc-name">${s.name}</div><span class="badge ${bc}">${bl}</span></div>
+    <div class="sc-addr">📍 ${s.vicinity}</div>
+    <div class="sc-tags">${tags.map(t=>`<span class="stag2">${t}</span>`).join('')}</div>
+  </div>`;
+}
+
+function selectStation(id){
+  const s=allStations.find(x=>x.id===id);if(!s)return;
+  document.querySelectorAll('.sc').forEach(c=>c.classList.remove('active'));
+  const card=document.getElementById('sc-'+id);
+  if(card){card.classList.add('active');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  if(!isDemo&&MAP) MAP.panTo({lat:s.lat,lng:s.lng});
+  const bl={open:'🟢 Available',busy:'🟡 Busy',closed:'🔴 Closed',unknown:'⚪ Unknown'}[s.status]||'⚪';
+  const url=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
+  const dp=document.getElementById('dp');
+  dp.className='dp show';
+  dp.innerHTML=`<div class="dp-name">${s.name}</div>
+    <div class="dp-addr">📍 ${s.vicinity}</div>
+    <div class="dp-stats">
+      <div class="dp-stat"><div class="dp-val">${s.ports||'?'}</div><div class="dp-lbl">Ports</div></div>
+      <div class="dp-stat"><div class="dp-val" style="font-size:11px;">${bl}</div><div class="dp-lbl">Status</div></div>
+      <div class="dp-stat"><div class="dp-val">${s.rating?s.rating+'★':'N/A'}</div><div class="dp-lbl">Rating</div></div>
+    </div>
+    <div class="dp-btns">
+      <button class="dp-dir" onclick="window.open('${url}','_blank')">🗺 Get Directions</button>
+      <button class="dp-close" onclick="document.getElementById('dp').className='dp';document.querySelectorAll('.sc').forEach(c=>c.classList.remove('active'))">✕</button>
+    </div>`;
+}
+
+function setChip(el,f){
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');activeFilter=f;renderAll();
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+function mapStyle(){return[
+  {elementType:'geometry',stylers:[{color:'#0f1a14'}]},
+  {elementType:'labels.text.fill',stylers:[{color:'#6a9680'}]},
+  {elementType:'labels.text.stroke',stylers:[{color:'#0a0f0d'}]},
+  {featureType:'road',elementType:'geometry',stylers:[{color:'#1a2e22'}]},
+  {featureType:'road.arterial',elementType:'geometry',stylers:[{color:'#243d2f'}]},
+  {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#2e4f3a'}]},
+  {featureType:'water',elementType:'geometry',stylers:[{color:'#071510'}]},
+  {featureType:'poi',stylers:[{visibility:'off'}]},
+  {featureType:'transit',stylers:[{visibility:'off'}]},
+];}
+</script>
+</body>
+</html>
